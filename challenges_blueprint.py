@@ -1,0 +1,174 @@
+from flask import Blueprint, jsonify, request, g
+from db_helpers import get_db_connection
+import psycopg2
+import psycopg2.extras
+from auth_middleware import token_required
+from datetime import datetime
+
+
+challenges_blueprint = Blueprint('challenges_blueprint', __name__)
+
+
+@challenges_blueprint.route('/challenges', methods=['POST'])
+@token_required
+def create_challenge():
+    try:
+        author_id = g.user["id"]
+
+        data = request.get_json()
+        title = data.get("title")
+        description = data.get("description")
+        difficulty = data.get("difficulty")
+
+        connection = get_db_connection()
+        cursor = connection.cursor(
+            cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute("""
+                        INSERT INTO coding_challenges (author, title, description, difficulty, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        RETURNING id
+                        """,
+                       (author_id, title, description, difficulty, datetime.utcnow(), datetime.utcnow())
+                       )
+        challenge_id = cursor.fetchone()["id"]
+        cursor.execute("""SELECT c.id,
+                            c.author AS author_id,
+                            c.title,
+                            c.description,
+                            c.difficulty,
+                            c.created_at,
+                            c.updated_at,
+                            u.username AS author_username
+                        FROM coding_challenges c
+                        JOIN users u ON c.author = u.id
+                        WHERE c.id = %s
+                       """, (challenge_id,))
+        created_challenge = cursor.fetchone()
+        connection.commit()
+        connection.close()
+        return jsonify(created_challenge), 201
+    except Exception as error:
+        return jsonify({"error": str(error)}), 500
+
+
+@challenges_blueprint.route('/challenges', methods=['GET'])
+def challenges_index():
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(
+            cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute("""SELECT c.id,
+                            c.author AS author_id,
+                            c.title,
+                            c.description,
+                            c.difficulty,
+                            c.created_at,
+                            c.updated_at,
+                            u.username AS author_username
+                        FROM coding_challenges c
+                        INNER JOIN users u ON c.author = u.id
+                        ORDER BY c.created_at DESC
+                       """)
+        challenges = cursor.fetchall()
+
+        connection.commit()
+        connection.close()
+        return jsonify(challenges), 200
+    except Exception as error:
+        return jsonify({"error": str(error)}), 500
+
+
+@challenges_blueprint.route('/challenges/<challenge_id>', methods=['GET'])
+def show_challenge(challenge_id):
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(
+            cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute("""
+            SELECT c.id,
+                c.author AS author_id,
+                c.title,
+                c.description,
+                c.difficulty,
+                c.created_at,
+                c.updated_at,
+                u.username AS author_username
+            FROM coding_challenges c
+            INNER JOIN users u ON c.author = u.id
+            WHERE c.id = %s""",
+                       (challenge_id,))
+        challenge = cursor.fetchone()
+        connection.close()
+        if challenge is not None:
+            return jsonify(challenge), 200
+        else:
+            return jsonify({"error": "Challenge not found"}), 404
+    except Exception as error:
+        return jsonify({"error": str(error)}), 500
+
+
+@challenges_blueprint.route('/challenges/<challenge_id>', methods=['PUT'])
+@token_required
+def update_challenge(challenge_id):
+    try:
+        data = request.get_json()
+        title = data.get("title")
+        description = data.get("description")
+        difficulty = data.get("difficulty")
+
+        connection = get_db_connection()
+        cursor = connection.cursor(
+            cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute("SELECT * FROM coding_challenges WHERE id = %s", (challenge_id,))
+        challenge_to_update = cursor.fetchone()
+        if challenge_to_update is None:
+            return jsonify({"error": "Challenge not found"}), 404
+        connection.commit()
+        if challenge_to_update["author"] != g.user["id"]:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        cursor.execute("""UPDATE coding_challenges
+                        SET title = %s, description = %s, difficulty = %s, updated_at = %s
+                        WHERE id = %s RETURNING id""",
+                       (title, description, difficulty, datetime.utcnow(), challenge_id))
+        updated_challenge_id = cursor.fetchone()["id"]
+        cursor.execute("""SELECT c.id,
+                            c.author AS author_id,
+                            c.title,
+                            c.description,
+                            c.difficulty,
+                            c.created_at,
+                            c.updated_at,
+                            u.username AS author_username
+                        FROM coding_challenges c
+                        JOIN users u ON c.author = u.id
+                        WHERE c.id = %s
+                       """, (updated_challenge_id,))
+        updated_challenge = cursor.fetchone()
+        connection.commit()
+        connection.close()
+        return jsonify(updated_challenge), 200
+    except Exception as error:
+        return jsonify({"error": str(error)}), 500
+
+
+@challenges_blueprint.route('/challenges/<challenge_id>', methods=['DELETE'])
+@token_required
+def delete_challenge(challenge_id):
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(
+            cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute("SELECT * FROM coding_challenges WHERE id = %s", (challenge_id,))
+        challenge_to_delete = cursor.fetchone()
+        if challenge_to_delete is None:
+            return jsonify({"error": "Challenge not found"}), 404
+        connection.commit()
+        if challenge_to_delete["author"] != g.user["id"]:
+            return jsonify({"error": "Unauthorized"}), 401
+        cursor.execute("DELETE FROM coding_challenges WHERE id = %s", (challenge_id,))
+        connection.commit()
+        connection.close()
+        return jsonify(challenge_to_delete), 200
+    except Exception as error:
+        return jsonify({"error": str(error)}), 500

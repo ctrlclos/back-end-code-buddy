@@ -5,15 +5,13 @@ import psycopg2
 import psycopg2.extras
 from auth_middleware import token_required
 from auth_blueprint import authentication_blueprint
-from hoots_blueprint import hoots_blueprint
-from comments_blueprint import comments_blueprint
+from challenges_blueprint import challenges_blueprint
 
 app = Flask(__name__)
 CORS(app, resources={
      r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
 app.register_blueprint(authentication_blueprint)
-app.register_blueprint(hoots_blueprint)
-app.register_blueprint(comments_blueprint)
+app.register_blueprint(challenges_blueprint)
 
 
 def get_db_connection():
@@ -24,7 +22,6 @@ def get_db_connection():
         password=os.getenv('POSTGRES_PASSWORD')
     )
     return connection
-
 
 @app.route('/users')
 @token_required
@@ -52,4 +49,4 @@ def users_show(user_id):
     return jsonify(user), 200
 
 
-app.run(debug=True, port=5000)
+app.run(debug=True, port=3000)
