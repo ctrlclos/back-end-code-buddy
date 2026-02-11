@@ -50,25 +50,43 @@ def create_challenge():
     except Exception as error:
         return jsonify({"error": str(error)}), 500
 
+ALLOWED_SORT_FIELDS = {"difficulty", "created_at"}
+DIFFICULT_ORDER = {"easy": 1, "medium": 2, "hard": "3"}
 
 @challenges_blueprint.route('/challenges', methods=['GET'])
 def challenges_index():
     try:
+        difficulty_filter = request.args.get("difficulty")
+        sort_by = request.args.get("sort_by", "created_at")
+
+        if sort_by not in ALLOWED_SORT_FIELDS:
+            sort_by = "created_at"
+
+        base_query = """SELECT c.id,
+                        c.author AS author_id,
+                        c.title,
+                        c.description,
+                        c.difficulty,
+                        c.created_at,
+                        c.updated_at,
+                        u.username AS author_username
+                    FROM coding_challenges c
+                    INNER JOIN users u ON c.author = u.id
+                """
+        params = []
+
+        if difficulty_filter:
+            base_query = base_query + " WHERE c.difficulty = %s"
+            params.append(difficulty_filter)
+        if sort_by == "difficulty":
+            base_query = base_query + " ORDER BY CASE c.difficulty WHEN 'easy' THEN 1 WHEN 'medium' THEN 2 WHEN 'hard' THEN 3 END"
+        else:
+            base_query = base_query + " ORDER BY c.created_at DESC"
+
         connection = get_db_connection()
         cursor = connection.cursor(
             cursor_factory=psycopg2.extras.RealDictCursor)
-        cursor.execute("""SELECT c.id,
-                            c.author AS author_id,
-                            c.title,
-                            c.description,
-                            c.difficulty,
-                            c.created_at,
-                            c.updated_at,
-                            u.username AS author_username
-                        FROM coding_challenges c
-                        INNER JOIN users u ON c.author = u.id
-                        ORDER BY c.created_at DESC
-                       """)
+        cursor.execute(base_query, tuple(params))
         challenges = cursor.fetchall()
 
         connection.commit()
