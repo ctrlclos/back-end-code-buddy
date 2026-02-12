@@ -19,16 +19,17 @@ def create_challenge():
         title = data.get("title")
         description = data.get("description")
         difficulty = data.get("difficulty")
+        data_structure_type = data.get("data_structure_type")
 
         connection = get_db_connection()
         cursor = connection.cursor(
             cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
-                        INSERT INTO coding_challenges (author, title, description, difficulty, created_at, updated_at)
-                        VALUES (%s, %s, %s, %s, %s, %s)
+                        INSERT INTO coding_challenges (author, title, description, difficulty, data_structure_type, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
                         RETURNING id
                         """,
-                       (author_id, title, description, difficulty, datetime.utcnow(), datetime.utcnow())
+                       (author_id, title, description, difficulty, data_structure_type, datetime.utcnow(), datetime.utcnow())
                        )
         challenge_id = cursor.fetchone()["id"]
         cursor.execute("""SELECT c.id,
@@ -36,6 +37,7 @@ def create_challenge():
                             c.title,
                             c.description,
                             c.difficulty,
+                            c.data_structure_type,
                             c.created_at,
                             c.updated_at,
                             u.username AS author_username
@@ -57,6 +59,7 @@ DIFFICULT_ORDER = {"easy": 1, "medium": 2, "hard": "3"}
 def challenges_index():
     try:
         difficulty_filter = request.args.get("difficulty")
+        data_structure_filter = request.args.get("data_structure_type")
         sort_by = request.args.get("sort_by", "created_at")
 
         if sort_by not in ALLOWED_SORT_FIELDS:
@@ -67,6 +70,7 @@ def challenges_index():
                         c.title,
                         c.description,
                         c.difficulty,
+                        c.data_structure_type,
                         c.created_at,
                         c.updated_at,
                         u.username AS author_username
@@ -74,10 +78,18 @@ def challenges_index():
                     INNER JOIN users u ON c.author = u.id
                 """
         params = []
+        conditions = []
 
         if difficulty_filter:
-            base_query = base_query + " WHERE c.difficulty = %s"
+            conditions.append("c.difficulty = %s")
             params.append(difficulty_filter)
+
+        if data_structure_filter:
+            conditions.append("c.data_structure_type = %s")
+            params.append(data_structure_filter)
+
+        if conditions:
+            base_query += " WHERE " + " AND ".join(conditions)
         if sort_by == "difficulty":
             base_query = base_query + " ORDER BY CASE c.difficulty WHEN 'easy' THEN 1 WHEN 'medium' THEN 2 WHEN 'hard' THEN 3 END"
         else:
@@ -108,6 +120,7 @@ def show_challenge(challenge_id):
                 c.title,
                 c.description,
                 c.difficulty,
+                c.data_structure_type,
                 c.created_at,
                 c.updated_at,
                 u.username AS author_username
@@ -133,6 +146,7 @@ def update_challenge(challenge_id):
         title = data.get("title")
         description = data.get("description")
         difficulty = data.get("difficulty")
+        data_structure_type = data.get("data_structure_type")
 
         connection = get_db_connection()
         cursor = connection.cursor(
@@ -146,15 +160,16 @@ def update_challenge(challenge_id):
             return jsonify({"error": "Unauthorized"}), 401
 
         cursor.execute("""UPDATE coding_challenges
-                        SET title = %s, description = %s, difficulty = %s, updated_at = %s
+                        SET title = %s, description = %s, difficulty = %s, data_structure_type = %s, updated_at = %s
                         WHERE id = %s RETURNING id""",
-                       (title, description, difficulty, datetime.utcnow(), challenge_id))
+                       (title, description, difficulty, data_structure_type, datetime.utcnow(), challenge_id))
         updated_challenge_id = cursor.fetchone()["id"]
         cursor.execute("""SELECT c.id,
                             c.author AS author_id,
                             c.title,
                             c.description,
                             c.difficulty,
+                            c.data_structure_type,
                             c.created_at,
                             c.updated_at,
                             u.username AS author_username

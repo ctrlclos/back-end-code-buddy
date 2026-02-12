@@ -17,6 +17,7 @@ CREATE TABLE coding_challenges(
   title VARCHAR(255) NOT NULL,
   description TEXT NOT NULL,
   difficulty VARCHAR(50) NOT NULL,
+  data_structure_type VARCHAR(50),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -24,6 +25,7 @@ CREATE TABLE coding_challenges(
 -- Create indexes for better query performance
 CREATE INDEX idx_challenges_author ON coding_challenges(author);
 CREATE INDEX idx_challenges_difficulty ON coding_challenges(difficulty);
+CREATE INDEX idx_challenges_data_structure_type ON coding_challenges(data_structure_type);
 
 -- Optional: Insert test data
 -- Uncomment below to create test users and data
