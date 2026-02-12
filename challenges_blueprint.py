@@ -38,6 +38,7 @@ def create_challenge():
                             c.description,
                             c.difficulty,
                             c.data_structure_type,
+                            c.is_curated,
                             c.created_at,
                             c.updated_at,
                             u.username AS author_username
@@ -60,6 +61,7 @@ def challenges_index():
     try:
         difficulty_filter = request.args.get("difficulty")
         data_structure_filter = request.args.get("data_structure_type")
+        is_curated_filter = request.args.get("is_curated")
         sort_by = request.args.get("sort_by", "created_at")
 
         if sort_by not in ALLOWED_SORT_FIELDS:
@@ -71,6 +73,7 @@ def challenges_index():
                         c.description,
                         c.difficulty,
                         c.data_structure_type,
+                        c.is_curated,
                         c.created_at,
                         c.updated_at,
                         u.username AS author_username
@@ -87,6 +90,10 @@ def challenges_index():
         if data_structure_filter:
             conditions.append("c.data_structure_type = %s")
             params.append(data_structure_filter)
+
+        if is_curated_filter:
+            conditions.append("c.is_curated = %s")
+            params.append(is_curated_filter.lower() == "true")
 
         if conditions:
             base_query += " WHERE " + " AND ".join(conditions)
@@ -121,6 +128,7 @@ def show_challenge(challenge_id):
                 c.description,
                 c.difficulty,
                 c.data_structure_type,
+                c.is_curated,
                 c.created_at,
                 c.updated_at,
                 u.username AS author_username
@@ -170,6 +178,7 @@ def update_challenge(challenge_id):
                             c.description,
                             c.difficulty,
                             c.data_structure_type,
+                            c.is_curated,
                             c.created_at,
                             c.updated_at,
                             u.username AS author_username

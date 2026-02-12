@@ -6,12 +6,14 @@ import psycopg2.extras
 from auth_middleware import token_required
 from auth_blueprint import authentication_blueprint
 from challenges_blueprint import challenges_blueprint
+from submissions_blueprint import submissions_blueprint
 
 app = Flask(__name__)
 CORS(app, resources={
      r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
 app.register_blueprint(authentication_blueprint)
 app.register_blueprint(challenges_blueprint)
+app.register_blueprint(submissions_blueprint)
 
 
 def get_db_connection():

@@ -1,0 +1,2 @@
+ALTER TABLE coding_challenges
+ADD COLUMN IF NOT EXISTS is_curated BOOLEAN DEFAULT FALSE;
