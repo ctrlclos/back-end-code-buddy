@@ -20,6 +20,9 @@ CREATE TABLE coding_challenges(
   difficulty VARCHAR(50) NOT NULL,
   data_structure_type VARCHAR(50),
   is_curated BOOLEAN DEFAULT FALSE,
+  function_name VARCHAR(100),
+  function_params JSONB DEFAULT '[]',
+  return_type VARCHAR(50) DEFAULT 'string',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -45,3 +48,16 @@ CREATE TABLE submissions (
 CREATE INDEX idx_submissions_user_id ON submissions(user_id);
 CREATE INDEX idx_submissions_challenge_id ON submissions(challenge_id);
 CREATE INDEX idx_submissions_user_challenge ON submissions(user_id, challenge_id);
+
+-- Create test_cases table
+CREATE TABLE test_cases (
+    id SERIAL PRIMARY KEY,
+    challenge_id INTEGER NOT NULL REFERENCES coding_challenges(id) ON DELETE CASCADE,
+    input TEXT NOT NULL DEFAULT '',
+    expected_output TEXT NOT NULL,
+    is_hidden BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create index for test_cases
+CREATE INDEX idx_test_cases_challenge_id ON test_cases(challenge_id);
