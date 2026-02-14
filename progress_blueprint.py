@@ -81,7 +81,8 @@ def get_stats():
         return jsonify({
         "error": str(error)
         }), 500
-
+@progress_blueprint.route('/progress/activity', methods=['GET'])
+@token_required
 def get_activity():
     try:
         user_id = g.user["id"]
