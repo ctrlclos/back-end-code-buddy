@@ -1,4 +1,5 @@
 -- Drop tables if they exist (for clean setup)
+DROP TABLE IF EXISTS submissions CASCADE;
 DROP TABLE IF EXISTS coding_challenges CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
@@ -18,6 +19,10 @@ CREATE TABLE coding_challenges(
   description TEXT NOT NULL,
   difficulty VARCHAR(50) NOT NULL,
   data_structure_type VARCHAR(50),
+  is_curated BOOLEAN DEFAULT FALSE,
+  function_name VARCHAR(100),
+  function_params JSONB DEFAULT '[]',
+  return_type VARCHAR(50) DEFAULT 'string',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -27,9 +32,32 @@ CREATE INDEX idx_challenges_author ON coding_challenges(author);
 CREATE INDEX idx_challenges_difficulty ON coding_challenges(difficulty);
 CREATE INDEX idx_challenges_data_structure_type ON coding_challenges(data_structure_type);
 
--- Optional: Insert test data
--- Uncomment below to create test users and data
+-- Create submissions table
+CREATE TABLE submissions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    challenge_id INTEGER NOT NULL REFERENCES coding_challenges(id) ON DELETE CASCADE,
+    code TEXT NOT NULL,
+    language VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'submitted',
+    notes TEXT,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- INSERT INTO users (username, password) VALUES
--- ('testuser1', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYzS6c9rK8e'), -- password: test123
--- ('testuser2', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYzS6c9rK8e'); -- password: test123
+-- Create indexes for submissions
+CREATE INDEX idx_submissions_user_id ON submissions(user_id);
+CREATE INDEX idx_submissions_challenge_id ON submissions(challenge_id);
+CREATE INDEX idx_submissions_user_challenge ON submissions(user_id, challenge_id);
+
+-- Create test_cases table
+CREATE TABLE test_cases (
+    id SERIAL PRIMARY KEY,
+    challenge_id INTEGER NOT NULL REFERENCES coding_challenges(id) ON DELETE CASCADE,
+    input TEXT NOT NULL DEFAULT '',
+    expected_output TEXT NOT NULL,
+    is_hidden BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create index for test_cases
+CREATE INDEX idx_test_cases_challenge_id ON test_cases(challenge_id);

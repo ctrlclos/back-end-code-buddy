@@ -1,9 +1,11 @@
 from flask import Blueprint, jsonify, request, g
 from db_helpers import get_db_connection
+import json
 import psycopg2
 import psycopg2.extras
 from auth_middleware import token_required
 from datetime import datetime
+from harness import generate_all_starter_code
 
 
 challenges_blueprint = Blueprint('challenges_blueprint', __name__)
@@ -20,16 +22,23 @@ def create_challenge():
         description = data.get("description")
         difficulty = data.get("difficulty")
         data_structure_type = data.get("data_structure_type")
+        function_name = data.get("function_name") or None
+        function_params = data.get("function_params", [])
+        return_type = data.get("return_type", "string")
 
         connection = get_db_connection()
         cursor = connection.cursor(
             cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
-                        INSERT INTO coding_challenges (author, title, description, difficulty, data_structure_type, created_at, updated_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO coding_challenges
+                        (author, title, description, difficulty, data_structure_type,
+                         function_name, function_params, return_type, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         RETURNING id
                         """,
-                       (author_id, title, description, difficulty, data_structure_type, datetime.utcnow(), datetime.utcnow())
+                       (author_id, title, description, difficulty, data_structure_type,
+                        function_name, json.dumps(function_params), return_type,
+                        datetime.utcnow(), datetime.utcnow())
                        )
         challenge_id = cursor.fetchone()["id"]
         cursor.execute("""SELECT c.id,
@@ -38,6 +47,10 @@ def create_challenge():
                             c.description,
                             c.difficulty,
                             c.data_structure_type,
+                            c.is_curated,
+                            c.function_name,
+                            c.function_params,
+                            c.return_type,
                             c.created_at,
                             c.updated_at,
                             u.username AS author_username
@@ -60,6 +73,7 @@ def challenges_index():
     try:
         difficulty_filter = request.args.get("difficulty")
         data_structure_filter = request.args.get("data_structure_type")
+        is_curated_filter = request.args.get("is_curated")
         sort_by = request.args.get("sort_by", "created_at")
 
         if sort_by not in ALLOWED_SORT_FIELDS:
@@ -71,6 +85,10 @@ def challenges_index():
                         c.description,
                         c.difficulty,
                         c.data_structure_type,
+                        c.is_curated,
+                        c.function_name,
+                        c.function_params,
+                        c.return_type,
                         c.created_at,
                         c.updated_at,
                         u.username AS author_username
@@ -87,6 +105,10 @@ def challenges_index():
         if data_structure_filter:
             conditions.append("c.data_structure_type = %s")
             params.append(data_structure_filter)
+
+        if is_curated_filter:
+            conditions.append("c.is_curated = %s")
+            params.append(is_curated_filter.lower() == "true")
 
         if conditions:
             base_query += " WHERE " + " AND ".join(conditions)
@@ -121,6 +143,10 @@ def show_challenge(challenge_id):
                 c.description,
                 c.difficulty,
                 c.data_structure_type,
+                c.is_curated,
+                c.function_name,
+                c.function_params,
+                c.return_type,
                 c.created_at,
                 c.updated_at,
                 u.username AS author_username
@@ -131,7 +157,14 @@ def show_challenge(challenge_id):
         challenge = cursor.fetchone()
         connection.close()
         if challenge is not None:
-            return jsonify(challenge), 200
+            response = dict(challenge)
+            if response.get("function_name"):
+                response["starter_code"] = generate_all_starter_code(
+                    response["function_name"],
+                    response.get("function_params") or [],
+                    response.get("return_type", "string"),
+                )
+            return jsonify(response), 200
         else:
             return jsonify({"error": "Challenge not found"}), 404
     except Exception as error:
@@ -147,6 +180,9 @@ def update_challenge(challenge_id):
         description = data.get("description")
         difficulty = data.get("difficulty")
         data_structure_type = data.get("data_structure_type")
+        function_name = data.get("function_name") or None
+        function_params = data.get("function_params", [])
+        return_type = data.get("return_type", "string")
 
         connection = get_db_connection()
         cursor = connection.cursor(
@@ -160,9 +196,13 @@ def update_challenge(challenge_id):
             return jsonify({"error": "Unauthorized"}), 401
 
         cursor.execute("""UPDATE coding_challenges
-                        SET title = %s, description = %s, difficulty = %s, data_structure_type = %s, updated_at = %s
+                        SET title = %s, description = %s, difficulty = %s,
+                            data_structure_type = %s, function_name = %s,
+                            function_params = %s, return_type = %s, updated_at = %s
                         WHERE id = %s RETURNING id""",
-                       (title, description, difficulty, data_structure_type, datetime.utcnow(), challenge_id))
+                       (title, description, difficulty, data_structure_type,
+                        function_name, json.dumps(function_params), return_type,
+                        datetime.utcnow(), challenge_id))
         updated_challenge_id = cursor.fetchone()["id"]
         cursor.execute("""SELECT c.id,
                             c.author AS author_id,
@@ -170,6 +210,10 @@ def update_challenge(challenge_id):
                             c.description,
                             c.difficulty,
                             c.data_structure_type,
+                            c.is_curated,
+                            c.function_name,
+                            c.function_params,
+                            c.return_type,
                             c.created_at,
                             c.updated_at,
                             u.username AS author_username
