@@ -5,7 +5,7 @@ from auth_middleware import token_required
 
 progress_blueprint = Blueprint('progress_blueprint', __name__)
 
-@progress_blueprint.route('/progress/stats', method=['GET'])
+@progress_blueprint.route('/progress/stats', methods=['GET'])
 @token_required
 def get_stats():
     try:
@@ -38,7 +38,7 @@ def get_stats():
                         THEN s.challenge_id
                     END) AS solved
                     FROM submissions s
-                    JOIN coding_challenges ON s.challenge_id = c.id
+                    JOIN coding_challenges c ON s.challenge_id = c.id
                     WHERE s.user_id = %s
                     GROUP BY c.difficulty
                     """, (user_id,))
@@ -46,6 +46,7 @@ def get_stats():
 
         cursor.execute("""
                     SELECT
+                    c.data_structure_type,
                     COUNT(DISTINCT s.challenge_id) AS attempted,
                     COUNT(DISTINCT CASE
                         WHEN s.status = 'passed'
@@ -54,8 +55,8 @@ def get_stats():
                     FROM submissions s
                     JOIN coding_challenges c ON s.challenge_id = c.id
                     WHERE s.user_id = %s
-                        AND c.data_structure IS NOT NULL
-                        GROUP BY c.data_structure_type
+                        AND c.data_structure_type IS NOT NULL
+                    GROUP BY c.data_structure_type
                     """, (user_id,))
         by_data_structure = cursor.fetchall()
 
@@ -104,7 +105,8 @@ def get_activity():
                         c.difficulty,
                         c.data_structure_type,
                         s.language,
-                        s.submitted_at,
+                        s.status,
+                        s.submitted_at
                     FROM submissions s
                     JOIN coding_challenges c ON s.challenge_id = c.id
                     WHERE s.user_id = %s
