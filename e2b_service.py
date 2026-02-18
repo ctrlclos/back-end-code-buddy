@@ -4,6 +4,7 @@ Sends user code to E2B cloud sandboxes for execution and evaluates
 results against test cases.
 """
 
+import json
 import os
 import time
 from dotenv import load_dotenv
@@ -82,6 +83,15 @@ def execute_code(source_code, language, stdin=""):
         return {"error": f"Code execution failed: {error_msg}"}
     finally:
         sandbox.kill()
+
+
+def _compare_outputs(actual, expected):
+    if actual == expected:
+        return True
+    try:
+        return json.loads(actual) == json.loads(expected)
+    except (json.JSONDecodeError, TypeError):
+        return False
 
 
 def run_test_cases(source_code, language, test_cases):
@@ -165,7 +175,7 @@ def run_test_cases(source_code, language, test_cases):
 
                 actual_output = (result.stdout or "").rstrip("\n")
                 expected_output = tc["expected_output"].strip()
-                passed = actual_output.strip() == expected_output
+                passed = _compare_outputs(actual_output.strip(), expected_output)
 
                 if passed:
                     passed_count += 1

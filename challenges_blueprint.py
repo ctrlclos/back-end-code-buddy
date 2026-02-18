@@ -149,7 +149,8 @@ def show_challenge(challenge_id):
                 c.return_type,
                 c.created_at,
                 c.updated_at,
-                u.username AS author_username
+                u.username AS author_username,
+                (SELECT COUNT(*) FROM test_cases tc WHERE tc.challenge_id = c.id) AS test_case_count
             FROM coding_challenges c
             INNER JOIN users u ON c.author = u.id
             WHERE c.id = %s""",

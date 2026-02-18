@@ -3,7 +3,7 @@ from db_helpers import get_db_connection
 import psycopg2
 import psycopg2.extras
 from auth_middleware import token_required
-
+import gemini_service
 
 test_cases_blueprint = Blueprint('test_cases_blueprint', __name__)
 
@@ -161,3 +161,37 @@ def delete_test_case(test_case_id):
         return jsonify(result), 200
     except Exception as error:
         return jsonify({"error": str(error)}), 500
+
+
+@test_cases_blueprint.route('/challenges/<challenge_id>/generate-test-cases', methods=['POST'])
+@token_required
+def generate_test_cases(challenge_id):
+    try:
+        user_id = g.user["id"]
+        connection = get_db_connection()
+        cursor = connection.cursor(
+            cursor_factory=psycopg2.extras.RealDictCursor
+        )
+        cursor.execute(
+            """
+            SELECT id, author, title, description, difficulty,
+            data_structure_type, function_name,
+            function_params, return_type
+            FROM coding_challenges WHERE id = %s
+            """,
+            (challenge_id,)
+        )
+        challenge = cursor.fetchone()
+        connection.close()
+
+        if challenge is None:
+            return jsonify({"error": "Challenge not found"}), 404
+        if challenge["author"] != user_id:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        generated = gemini_service.generate_test_cases(challenge)
+
+        return jsonify(generated), 200
+    except Exception as error:
+        return jsonify({"error": str(error)}), 500
+    

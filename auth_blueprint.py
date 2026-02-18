@@ -68,3 +68,8 @@ def sign_in():
         return jsonify({"err": str(err)}), 500
     finally:
         connection.close()
+
+
+@authentication_blueprint.route('/auth/sign-out', methods=["POST"])
+def sign_out():
+    return jsonify({"message": "Successfully signed out"}), 200
