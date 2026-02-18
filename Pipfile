@@ -11,6 +11,7 @@ python-dotenv = "*"
 bcrypt = "*"
 flask-cors = "*"
 e2b-code-interpreter = "*"
+google-genai = "*"
 
 [dev-packages]
 

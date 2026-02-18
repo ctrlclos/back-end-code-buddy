@@ -8,6 +8,7 @@ from auth_blueprint import authentication_blueprint
 from challenges_blueprint import challenges_blueprint
 from submissions_blueprint import submissions_blueprint
 from test_cases_blueprint import test_cases_blueprint
+from progress_blueprint import progress_blueprint
 
 app = Flask(__name__)
 CORS(app, resources={
@@ -16,7 +17,7 @@ app.register_blueprint(authentication_blueprint)
 app.register_blueprint(challenges_blueprint)
 app.register_blueprint(submissions_blueprint)
 app.register_blueprint(test_cases_blueprint)
-
+app.register_blueprint(progress_blueprint)
 
 def get_db_connection():
     connection = psycopg2.connect(
