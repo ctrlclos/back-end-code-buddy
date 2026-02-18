@@ -9,24 +9,20 @@ from challenges_blueprint import challenges_blueprint
 from submissions_blueprint import submissions_blueprint
 from test_cases_blueprint import test_cases_blueprint
 from progress_blueprint import progress_blueprint
+from db_helpers import get_db_connection
 
 app = Flask(__name__)
+
+cors_origin = os.environ.get('CORS_ORIGIN', '*')
+supports_credentials = cors_origin != '*'
 CORS(app, resources={
-     r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
+     r"/*": {"origins": cors_origin}}, supports_credentials=supports_credentials)
+
 app.register_blueprint(authentication_blueprint)
 app.register_blueprint(challenges_blueprint)
 app.register_blueprint(submissions_blueprint)
 app.register_blueprint(test_cases_blueprint)
 app.register_blueprint(progress_blueprint)
-
-def get_db_connection():
-    connection = psycopg2.connect(
-        host='localhost',
-        database=os.getenv('POSTGRES_DATABASE'),
-        user=os.getenv('POSTGRES_USERNAME'),
-        password=os.getenv('POSTGRES_PASSWORD')
-    )
-    return connection
 
 @app.route('/users')
 @token_required
@@ -54,4 +50,5 @@ def users_show(user_id):
     return jsonify(user), 200
 
 
-app.run(debug=True, port=3000)
+if __name__ == '__main__':
+    app.run(debug=True, port=3000)
